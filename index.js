@@ -2,6 +2,12 @@ addEventListener('fetch', event => {
     event.respondWith(handleRequest(event))
 })
 
+const globalHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': '*',
+    'Access-Control-Allow-Headers': '*'
+};
+
 async function serveAsset(event) {
     const url = new URL(event.request.url);
     const cache = caches.default;
@@ -12,8 +18,8 @@ async function serveAsset(event) {
             if (url.pathname === "/favicon.ico") {
                 await fetch("https://flawcra.cc/favicon.ico").then(async function (tmpResp) {
                     const headers = {
+                        ...globalHeaders,
                         'cache-control': 'public, max-age=14400',
-                        'Access-Control-Allow-Origin': '*',
                         'Content-Length': tmpResp.headers.get("content-length"),
                         'Content-Type': tmpResp.headers.get("content-type")
                     };
@@ -57,14 +63,16 @@ async function serveAsset(event) {
                             let {readable, writable} = new TransformStream();
                             const contentLength = audio.headers.get("content-length");
                             audio.body.pipeTo(writable)
-                            var headers = audio.headers;
-                            headers['cache-control'] = "public, max-age=14400";
-                            headers['Access-Control-Allow-Origin'] = "*";
-                            headers['Content-Type'] = "audio/mpeg";
-                            headers['Content-Encoding'] = "deflate";
-                            headers['Content-Length'] = contentLength;
-                            headers['Content-Disposition'] = `filename="${tmpJson.user.username} - ${tmpJson.title}.mp3"`;
-                            headers['X-Content-Duration'] = tmpJson.duration / 1000;
+                            var headers = {
+                                ...audio.headers,
+                                ...globalHeaders,
+                                'cache-control': 'public, max-age=14400',
+                                'Content-Type': 'audio/mpeg',
+                                'Content-Encoding': 'deflate',
+                                'Content-Length': contentLength,
+                                'Content-Disposition': `filename="${tmpJson.user.username} - ${tmpJson.title}.mp3"`,
+                                'X-Content-Duration': tmpJson.duration / 1000,
+                            };
                             response = new Response(readable, {headers});
                             event.waitUntil(cache.put(event.request, response.clone()));
                             break;
@@ -82,8 +90,8 @@ async function serveAsset(event) {
                             }
                             var ctType = "application/x-mpegURL";
                             var headers = {
+                                ...globalHeaders,
                                 'cache-control': 'public, max-age=14400',
-                                'Access-Control-Allow-Origin': '*',
                                 'Content-Type': ctType
                             };
                             response = new Response(outStr, {headers, statusText: "OK", status: 200});
@@ -92,8 +100,8 @@ async function serveAsset(event) {
                             break;
                         default:
                             var headers = {
+                                ...globalHeaders,
                                 'cache-control': 'public, max-age=14400',
-                                'Access-Control-Allow-Origin': '*',
                                 'content-type': "plain/html",
                                 'Content-Encoding': 'deflate'
                             }
@@ -113,10 +121,6 @@ async function serveAsset(event) {
         console.error(err);
         response = new Response(err.toString(), {statusText: "Error while resolving URL", status: 422})
     }
-
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', '*');
-    response.headers.set('Access-Control-Allow-Headers', '*');
 
     return response;
 }
